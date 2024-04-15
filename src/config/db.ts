@@ -6,7 +6,7 @@ const connectDb = async () => {
         mongoose
         .connect(config.mongoUri as string)
         .then(() => {
-            console.log(`${new Date()} Successfully connected to the database`);
+            console.log(`${new Date()}: Successfully connected to the database`);
         })
         .catch(err => console.log(err));
     } catch (error) {
