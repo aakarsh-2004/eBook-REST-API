@@ -1,1 +1,1 @@
-# eBook Store
+# eBook Store API
