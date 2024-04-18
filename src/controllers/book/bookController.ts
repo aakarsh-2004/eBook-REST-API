@@ -3,6 +3,7 @@ import cloudinary from "../../config/cloudinary";
 import path from "path";
 import createHttpError from "http-errors";
 import bookModel from "../../models/book/bookModel";
+import fs from "fs";
 
 const createBook = async (
     req: Request, 
@@ -28,7 +29,7 @@ const createBook = async (
     // cover image upload
     const coverImageMimeType = files.coverimage[0].mimetype.split('/').at(-1);
     const fileName = files.coverimage[0].filename;
-    const filePath = path.resolve(__dirname, '../../public/data/uploads', fileName);
+    const filePath = path.resolve(__dirname, '../../../public/data/uploads', fileName);
 
     try {
         const uploadResult = await cloudinary.uploader.upload(filePath, {
@@ -41,14 +42,14 @@ const createBook = async (
             coverImageUrl=uploadResult.secure_url;
         }
     
-        console.log('Book cover upload result', uploadResult);
+        console.log('Book cover uploaded successfully');
     } catch (error) {
         return next(createHttpError(500, `Error while uploading cover image to cloudinary, ${error}`));
     }
 
     // pdf file upload
     const bookFileName = files.file[0].filename;
-    const bookFilePath = path.resolve(__dirname, '../../public/data/uploads', bookFileName);
+    const bookFilePath = path.resolve(__dirname, '../../../public/data/uploads', bookFileName);
     const bookPdfMimeType = files.file[0].mimetype.split('/').at(-1);
 
     try {
@@ -61,12 +62,20 @@ const createBook = async (
         if(bookFileUploadResult){
             pdfUploaded=true;
             pdfUrl=bookFileUploadResult.secure_url;
+            console.log("Book file uploaded successfully");
         }
-
-        console.log("Book file upload result", bookFileUploadResult);
         
     } catch (error) {
         return next(createHttpError(500, `There was an error uploading Book Pdf to cloudinary, ${error}`));
+    }
+
+    // deleting the files after uploading to cloudinary has been completed (temp files)
+    
+    try {
+        await fs.promises.unlink(filePath);
+        await fs.promises.unlink(bookFilePath);
+    } catch (error) {
+        return next(createHttpError(500, `There was an error deleting files from filesystem ${error}`));
     }
     
     // Uploading data to mongodb database after media files have been uploaded
@@ -75,7 +84,7 @@ const createBook = async (
             const newBook = await bookModel.create({
                 title,
                 genre,
-                author: "661d4f36147950cf7a8c802f",
+                author: req.userId,
                 coverImage: coverImageUrl,
                 file: pdfUrl
             })
@@ -90,6 +99,7 @@ const createBook = async (
 
     if(coverUploaded && pdfUploaded && uploadedToDb){
         res.json({message: 'Files uploaded and added to the database successfully'});
+        
     } else {
         res.json({message: "There was a problem while uploading to the database or cloudinary"});
     }
